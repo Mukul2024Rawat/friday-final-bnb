@@ -1,0 +1,140 @@
+name: build-and-deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'dev'
+      - 'staging'
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  REPOSITORY_BRANCH_NAME: ${{ github.ref_name }}
+  GITEA_SERVER_URL: ${{ github.server_url }}
+  REPOSITORY_NAME: ${{ github.repository }}
+  ACTION_RUN_ID: ${{ github.run_number }}
+  REPOSITORY_URL: "${{ env.GITEA_SERVER_URL }}/${{ env.REPOSITORY_NAME }}"
+  ACTION_LOG: "${{ env.GITEA_SERVER_URL }}/${{ env.REPOSITORY_NAME }}/actions/runs/${{ env.ACTION_RUN_ID }}"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run Linting
+      run: npm run lint
+
+    - name: Build app staging
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/staging'
+      env:
+        NEXT_PUBLIC_API_BASE_URL: "https://staging-api-airnb.rubico.dev"
+        NEXT_PUBLIC_API_VERSION: "api/v1"
+      run: npm run build
+
+    - name: rsync the build to staging server
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/staging'
+      uses: burnett01/rsync-deployments@7.0.1
+      with:
+        switches: -avhzr --delete --progress
+        path: ./.next
+        remote_path: /home/airnb/staging-app-airnb.rubico.dev/
+        remote_host: ${{ secrets.STAGING_SSH_HOST }}
+        remote_user: ${{ secrets.STAGING_SSH_USERNAME }}
+        remote_key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+
+    - name: Deploy code to staging server
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/staging'
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.STAGING_SSH_HOST }}
+        username: ${{ secrets.STAGING_SSH_USERNAME }}
+        key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+        script_stop: true
+        script: |
+          cd /home/airnb/staging-app-airnb.rubico.dev/
+          source ~/.nvm/nvm.sh    
+          
+          git stash -u
+          git pull origin --no-edit staging
+
+          nvm use          
+          node -v
+          npm -v 
+
+          npm ci
+
+          pm2 status        
+          pm2 restart ecosystem.config.js --only airnb-next-staging
+          pm2 save
+          pm2 status  
+
+    - name: Build app dev
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/dev'
+      env:
+        NEXT_PUBLIC_API_BASE_URL: "https://dev-api-airnb.rubico.dev"
+        NEXT_PUBLIC_API_VERSION: "api/v1"
+      run: npm run build
+
+    - name: rsync the build to dev server
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/dev'
+      uses: burnett01/rsync-deployments@7.0.1
+      with:
+        switches: -avhzr --delete --progress
+        path: ./.next
+        remote_path: /home/airnb/dev-app-airnb.rubico.dev/
+        remote_host: ${{ secrets.DEV_SSH_HOST }}
+        remote_user: ${{ secrets.DEV_SSH_USERNAME }}
+        remote_key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+
+    - name: Deploy code to dev server
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/dev'
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.DEV_SSH_HOST }}
+        username: ${{ secrets.DEV_SSH_USERNAME }}
+        key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+        script_stop: true
+        script: |
+          cd /home/airnb/dev-app-airnb.rubico.dev/
+          source ~/.nvm/nvm.sh    
+          
+          git stash -u
+          git pull origin --no-edit dev
+
+          nvm use          
+          node -v
+          npm -v 
+
+          npm ci
+
+          pm2 status        
+          pm2 restart ecosystem.config.js --only airnb-next-dev
+          pm2 save
+          pm2 status     
+
+    - name: Post to a Slack channel
+      if: always() && github.event_name == 'push'
+      id: slack
+      uses: slackapi/slack-github-action@v1.26.0
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_COLOR: ${{ job.status == 'success' && '#36a64f' || '#FF0000' }}
+        JOB_STATUS: ${{ job.status }}
+      with:    
+        channel-id: 'C07A2ND10TA'    
+        payload-file-path: ".gitea/slack/build-notification.json"

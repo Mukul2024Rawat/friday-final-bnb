@@ -1,0 +1,45 @@
+{
+    "attachments": [
+      {
+        "fallback": "Build status: ${{ env.JOB_STATUS }}",
+        "color": "${{ env.SLACK_COLOR }}",
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "Repo: ${{ env.REPOSITORY_URL }}"
+            }
+          },
+          {
+            "type": "section",
+            "fields": [
+              {
+                "type": "mrkdwn",
+                "text": "*Status:*\n${{ env.JOB_STATUS }}"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*Branch:*\n${{ env.REPOSITORY_BRANCH_NAME }}"
+              }
+            ]
+          },
+          {
+            "type": "actions",
+            "elements": [
+              {
+                "type": "button",
+                "text": {
+                  "type": "plain_text",
+                  "emoji": true,
+                  "text": "View Logs"
+                },
+                "url": "${{ env.ACTION_LOG }}",
+                "style": "primary"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }

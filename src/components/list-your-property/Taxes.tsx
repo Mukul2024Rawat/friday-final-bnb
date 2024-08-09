@@ -9,60 +9,46 @@ import Header from "./Header";
 const TaxesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void }) => {
   const dispatch = useDispatch();
   const priceFromState = useSelector((state: RootState) => state.form.price);
-  const [tax, setTax] = useState<number | string>(priceFromState.tax || "");
-  const [serviceFee, setServiceFee] = useState<number | string>(priceFromState.service_fee || "");
-  const [cleaningFee, setCleaningFee] = useState<number | string>(priceFromState.cleaning_fee || "");
+  const [tax, setTax] = useState<string>(priceFromState.tax?.toString() ?? "");
+  const [serviceFee, setServiceFee] = useState<string>(priceFromState.service_fee?.toString() ?? "");
+  const [cleaningFee, setCleaningFee] = useState<string>(priceFromState.cleaning_fee?.toString() ?? "");
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    setTax(priceFromState.tax || "");
-    setServiceFee(priceFromState.service_fee || "");
-    setCleaningFee(priceFromState.cleaning_fee || "");
+    setTax(priceFromState.tax?.toString() ?? "");
+    setServiceFee(priceFromState.service_fee?.toString() ?? "");
+    setCleaningFee(priceFromState.cleaning_fee?.toString() ?? "");
   }, [priceFromState]);
 
   const validateInput = (value: string): boolean => {
     const numberValue = Number(value);
-    return !isNaN(numberValue) && numberValue >= 0 && numberValue <= 100;
+    return value === "" || (!isNaN(numberValue) && numberValue >= 0 && numberValue <= 100);
   };
 
-  const handleTaxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     if (validateInput(value)) {
-      setTax(value);
+      setter(value);
       setError("");
     } else {
       setError("Value must be between 0 and 100");
     }
   };
 
-  const handleServiceFeeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    if (validateInput(value)) {
-      setServiceFee(value);
-      setError("");
-    } else {
-      setError("Value must be between 0 and 100");
-    }
-  };
-
-  const handleCleaningFeeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    if (validateInput(value)) {
-      setCleaningFee(value);
-      setError("");
-    } else {
-      setError("Value must be between 0 and 100");
+  const handleInputFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (event.target.value === "0") {
+      event.target.value = "";
     }
   };
 
   const handleNext = () => {
-    if (validateInput(String(tax)) && validateInput(String(serviceFee)) && validateInput(String(cleaningFee))) {
+    if (validateInput(tax) && validateInput(serviceFee) && validateInput(cleaningFee)) {
       dispatch(
         setPrice({
           ...priceFromState,
-          tax: Number(tax),
-          service_fee: Number(serviceFee),
-          cleaning_fee: Number(cleaningFee),
+          tax: tax === "" ? 0 : Number(tax),
+          service_fee: serviceFee === "" ? 0 : Number(serviceFee),
+          cleaning_fee: cleaningFee === "" ? 0 : Number(cleaningFee),
         })
       );
       onNext();
@@ -72,12 +58,9 @@ const TaxesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void 
   };
 
   const isComplete =
-    tax !== "" &&
-    serviceFee !== "" &&
-    cleaningFee !== "" &&
-    validateInput(String(tax)) &&
-    validateInput(String(serviceFee)) &&
-    validateInput(String(cleaningFee));
+    validateInput(tax) &&
+    validateInput(serviceFee) &&
+    validateInput(cleaningFee);
 
   return (
     <div className="flex flex-col h-screen bg-zinc-200">
@@ -106,7 +89,8 @@ const TaxesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void 
               className="mt-1 block w-full border-2 rounded-md p-4 shadow-sm"
               placeholder="Enter tax"
               value={tax}
-              onChange={handleTaxChange}
+              onChange={handleInputChange(setTax)}
+              onFocus={handleInputFocus}
               min="0"
               max="100"
               step="0.1"
@@ -126,7 +110,8 @@ const TaxesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void 
               className="mt-1 block w-full border-2 rounded-md p-4 shadow-sm"
               placeholder="Enter service fee"
               value={serviceFee}
-              onChange={handleServiceFeeChange}
+              onChange={handleInputChange(setServiceFee)}
+              onFocus={handleInputFocus}
               min="0"
               max="100"
               step="0.1"
@@ -146,7 +131,8 @@ const TaxesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void 
               className="mt-1 block w-full border-2 rounded-md p-4 shadow-sm"
               placeholder="Enter cleaning fee"
               value={cleaningFee}
-              onChange={handleCleaningFeeChange}
+              onChange={handleInputChange(setCleaningFee)}
+              onFocus={handleInputFocus}
               min="0"
               max="100"
               step="0.1"
@@ -159,7 +145,7 @@ const TaxesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void 
       </main>
       <Footer
         onBack={onBack}
-        onNext={handleNext} // Use handleNext instead of onNext directly
+        onNext={handleNext}
         isNextDisabled={!isComplete}
       />
     </div>

@@ -1,5 +1,4 @@
-"use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { setProperty } from "@/store/slices/formSlice";
@@ -19,7 +18,7 @@ const DescriptionStep = ({ onNext, onBack }: { onNext: () => void; onBack: () =>
     }
   };
 
-  const isComplete = description.length > 0;
+  const isComplete = description.trim().length > 0;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-200">
@@ -39,7 +38,7 @@ const DescriptionStep = ({ onNext, onBack }: { onNext: () => void; onBack: () =>
               name="description"
               id="property-description"
               className="shadow-sm block w-full border-solid border-2 border-gray-300 rounded-md p-4"
-              placeholder="You&apos;ll have a great time at this comfortable place to stay."
+              placeholder="You'll have a great time at this comfortable place to stay."
               value={description}
               onChange={handleTextareaChange}
               rows={8}

@@ -1,5 +1,4 @@
-"use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { setProperty } from "@/store/slices/formSlice";
@@ -19,7 +18,7 @@ const TitleStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void 
     }
   };
 
-  const isComplete = title.length > 0;
+  const isComplete = title.trim().length > 0;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-200">

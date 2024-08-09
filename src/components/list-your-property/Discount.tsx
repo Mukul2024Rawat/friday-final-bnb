@@ -9,20 +9,22 @@ import Header from "./Header";
 const DiscountStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void }) => {
   const dispatch = useDispatch();
   const priceFromState = useSelector((state: RootState) => state.form.price);
-  const [dailyDiscount, setDailyDiscount] = useState<number | string>(priceFromState.daily_discount || "");
-  const [weeklyDiscount, setWeeklyDiscount] = useState<number | string>(priceFromState.weekly_discount || "");
+  const [dailyDiscount, setDailyDiscount] = useState<number>(priceFromState.daily_discount ?? 0);
+  const [weeklyDiscount, setWeeklyDiscount] = useState<number>(priceFromState.weekly_discount ?? 0);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    setDailyDiscount(priceFromState.daily_discount || "");
-    setWeeklyDiscount(priceFromState.weekly_discount || "");
+    setDailyDiscount(priceFromState.daily_discount ?? 0);
+    setWeeklyDiscount(priceFromState.weekly_discount ?? 0);
   }, [priceFromState]);
 
-  const handleDailyDiscountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    if (!isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 100) {
-      setDailyDiscount(value);
-      if (Number(value) > Number(weeklyDiscount)) {
+  const handleDiscountChange = (setter: React.Dispatch<React.SetStateAction<number>>, otherValue: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value === '' ? 0 : Number(event.target.value);
+    if (!isNaN(value) && value >= 0 && value <= 100) {
+      setter(value);
+      if (setter === setWeeklyDiscount && value < otherValue) {
+        setError("Weekly discount cannot be less than daily discount");
+      } else if (setter === setDailyDiscount && value > otherValue) {
         setError("Weekly discount cannot be less than daily discount");
       } else {
         setError("");
@@ -30,38 +32,38 @@ const DiscountStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => vo
     }
   };
 
-  const handleWeeklyDiscountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    if (!isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 100) {
-      setWeeklyDiscount(value);
-      if (Number(value) < Number(dailyDiscount)) {
-        setError("Weekly discount cannot be less than daily discount");
-      } else {
-        setError("");
-      }
+  const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (event.target.value === '0') {
+      event.target.value = '';
+    }
+  };
+
+  const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (event.target.value === '') {
+      event.target.value = '0';
     }
   };
 
   const handleNext = () => {
-    if (Number(weeklyDiscount) < Number(dailyDiscount)) {
+    if (weeklyDiscount < dailyDiscount) {
       setError("Weekly discount cannot be less than daily discount");
       return;
     }
     dispatch(setPrice({
       ...priceFromState,
-      daily_discount: Number(dailyDiscount),
-      weekly_discount: Number(weeklyDiscount)
+      daily_discount: dailyDiscount,
+      weekly_discount: weeklyDiscount
     }));
     onNext();
   };
 
-  const isComplete = dailyDiscount !== "" && weeklyDiscount !== "" && Number(weeklyDiscount) >= Number(dailyDiscount) && !isNaN(Number(dailyDiscount)) && !isNaN(Number(weeklyDiscount));
+  const isComplete = !isNaN(dailyDiscount) && !isNaN(weeklyDiscount) && weeklyDiscount >= dailyDiscount;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-200">
-    <Header />
-    <main className="flex-grow p-24 mt-[73px]">
-      <div className="max-w-xl mx-auto w-full space-y-8 p-8 bg-white rounded-lg shadow-2xl">
+      <Header />
+      <main className="flex-grow p-24 mt-[73px]">
+        <div className="max-w-xl mx-auto w-full space-y-8 p-8 bg-white rounded-lg shadow-2xl">
           <div>
             <h2 className="text-center text-3xl font-extrabold text-gray-900 py-4">
               Set your discounts
@@ -84,7 +86,9 @@ const DiscountStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => vo
               className="mt-1 block w-full border-2 rounded-md p-4 shadow-sm"
               placeholder="Enter daily discount"
               value={dailyDiscount}
-              onChange={handleDailyDiscountChange}
+              onChange={handleDiscountChange(setDailyDiscount, weeklyDiscount)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
               min="0"
               max="100"
               step="0.1"
@@ -104,7 +108,9 @@ const DiscountStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => vo
               className="mt-1 block w-full border-2 rounded-md p-4 shadow-sm"
               placeholder="Enter weekly discount"
               value={weeklyDiscount}
-              onChange={handleWeeklyDiscountChange}
+              onChange={handleDiscountChange(setWeeklyDiscount, dailyDiscount)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
               min="0"
               max="100"
               step="0.1"
@@ -117,7 +123,7 @@ const DiscountStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => vo
       </main>
       <Footer
         onBack={onBack}
-        onNext={handleNext} // Use handleNext instead of onNext directly
+        onNext={handleNext}
         isNextDisabled={!isComplete}
       />
     </div>

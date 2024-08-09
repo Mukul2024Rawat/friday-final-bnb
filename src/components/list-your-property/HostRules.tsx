@@ -1,5 +1,4 @@
-"use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { setRules } from "@/store/slices/formSlice";
@@ -9,40 +8,48 @@ import Header from "./Header";
 const HostRulesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void }) => {
   const dispatch = useDispatch();
   const rules = useSelector((state: RootState) => state.form.rules);
-  
+
   const [checkInTime, setCheckInTime] = useState<string>(rules.check_in_time || "15:00");
   const [checkOutTime, setCheckOutTime] = useState<string>(rules.check_out_time || "11:00");
-  const [selfCheckIn, setSelfCheckIn] = useState<boolean>(rules.self_check_in || true);
-  const [noSmoking, setNoSmoking] = useState<boolean>(rules.no_smoking || true);
-  const [noPartiesOrEvents, setNoPartiesOrEvents] = useState<boolean>(rules.no_parties_or_events || false);
-  const [carbonMonoxideAlarm, setCarbonMonoxideAlarm] = useState<boolean>(rules.carbon_monoxide_alarm || true);
-  const [smokeAlarm, setSmokeAlarm] = useState<boolean>(rules.smoke_alarm || true);
-  const [securityDeposit, setSecurityDeposit] = useState<number | string>(rules.security_deposit || 200);
+  const [selfCheckIn, setSelfCheckIn] = useState<boolean>(rules.self_check_in ?? true);
+  const [noSmoking, setNoSmoking] = useState<boolean>(rules.no_smoking ?? true);
+  const [noPartiesOrEvents, setNoPartiesOrEvents] = useState<boolean>(rules.no_parties_or_events ?? false);
+  const [carbonMonoxideAlarm, setCarbonMonoxideAlarm] = useState<boolean>(rules.carbon_monoxide_alarm ?? true);
+  const [smokeAlarm, setSmokeAlarm] = useState<boolean>(rules.smoke_alarm ?? true);
+  const [securityDeposit, setSecurityDeposit] = useState<string>(rules.security_deposit?.toString() ?? "200");
   const [securityDepositError, setSecurityDepositError] = useState<string>("");
 
   useEffect(() => {
     setCheckInTime(rules.check_in_time || "15:00");
     setCheckOutTime(rules.check_out_time || "11:00");
-    setSelfCheckIn(rules.self_check_in || true);
-    setNoSmoking(rules.no_smoking || true);
-    setNoPartiesOrEvents(rules.no_parties_or_events || false);
-    setCarbonMonoxideAlarm(rules.carbon_monoxide_alarm || true);
-    setSmokeAlarm(rules.smoke_alarm || true);
-    setSecurityDeposit(rules.security_deposit || 200);
+    setSelfCheckIn(rules.self_check_in ?? true);
+    setNoSmoking(rules.no_smoking ?? true);
+    setNoPartiesOrEvents(rules.no_parties_or_events ?? false);
+    setCarbonMonoxideAlarm(rules.carbon_monoxide_alarm ?? true);
+    setSmokeAlarm(rules.smoke_alarm ?? true);
+    setSecurityDeposit(rules.security_deposit?.toString() ?? "200");
   }, [rules]);
 
   const handleSecurityDepositChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === "" || parseFloat(value) >= 0) {
+    const numValue = parseInt(value, 10);
+    if (value === "" || (numValue >= 0 && Number.isInteger(numValue))) {
       setSecurityDeposit(value);
       setSecurityDepositError("");
     } else {
-      setSecurityDepositError("Negative value is not allowed");
+      setSecurityDepositError("Please enter a valid non-negative integer");
+    }
+  };
+
+  const handleSecurityDepositFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (e.target.value === "0") {
+      setSecurityDeposit("");
     }
   };
 
   const handleNext = () => {
-    if (Number(securityDeposit) >= 0) {
+    const depositValue = securityDeposit === "" ? 0 : parseInt(securityDeposit, 10);
+    if (Number.isInteger(depositValue) && depositValue >= 0) {
       dispatch(setRules({
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
@@ -51,13 +58,16 @@ const HostRulesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => v
         no_parties_or_events: noPartiesOrEvents,
         carbon_monoxide_alarm: carbonMonoxideAlarm,
         smoke_alarm: smokeAlarm,
-        security_deposit: Number(securityDeposit),
+        security_deposit: depositValue,
       }));
       onNext();
+    } else {
+      setSecurityDepositError("Please enter a valid non-negative integer for the security deposit");
     }
   };
 
-  const isComplete = checkInTime !== "" && checkOutTime !== "" && !isNaN(Number(securityDeposit)) && Number(securityDeposit) >= 0;
+  const isComplete = checkInTime !== "" && checkOutTime !== "" && 
+    (securityDeposit === "" || (Number.isInteger(parseInt(securityDeposit, 10)) && parseInt(securityDeposit, 10) >= 0));
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-200">
@@ -72,6 +82,8 @@ const HostRulesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => v
               Define the rules and safety measures for your property.
             </p>
           </div>
+          
+          {/* Time inputs and checkbox inputs */}
           <div>
             <label htmlFor="check-in-time" className="block text-sm font-medium text-gray-700">
               Check-in Time
@@ -175,6 +187,7 @@ const HostRulesStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => v
               placeholder="Enter security deposit amount"
               value={securityDeposit}
               onChange={handleSecurityDepositChange}
+              onFocus={handleSecurityDepositFocus}
               min="0"
               step="1"
             />

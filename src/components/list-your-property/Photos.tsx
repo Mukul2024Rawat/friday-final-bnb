@@ -20,6 +20,7 @@ const PhotosStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void
   const [images, setImagesState] = useState<ImageType[]>(imagesFromState);
   const minNumber = 5;
   const maxNumber = 10;
+  const maxSizeInBytes = 10 * 1024 * 1024; // 10 MB
 
   useEffect(() => {
     dispatch(setImages(images));
@@ -29,11 +30,17 @@ const PhotosStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void
     const files = Array.from(event.target.files || []);
     const validExtensions = ['image/jpeg', 'image/png', 'image/jpg'];
     
-    const filteredFiles = files.filter(file => validExtensions.includes(file.type));
-    if (filteredFiles.length !== files.length) {
-      alert('Only JPG, JPEG, and PNG files are allowed.');
-      return;
-    }
+    const filteredFiles = files.filter(file => {
+      if (!validExtensions.includes(file.type)) {
+        alert('Only JPG, JPEG, and PNG files are allowed.');
+        return false;
+      }
+      if (file.size > maxSizeInBytes) {
+        alert(`File "${file.name}" exceeds the maximum allowed size of 10 MB.`);
+        return false;
+      }
+      return true;
+    });
 
     if (filteredFiles.length + images.length > maxNumber) {
       alert(`You can upload a maximum of ${maxNumber} images.`);
@@ -62,11 +69,11 @@ const PhotosStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => void
       <div className="fixed top-0 left-0 right-0 z-10">
         <Header />
       </div>
-      <main className="flex-grow overflow-y-auto mt-24 mb-[80px]"> {/* Adjust mt and mb based on your Header and Footer heights */}
+      <main className="flex-grow overflow-y-auto mt-24 mb-[80px]">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-white p-8 rounded-lg shadow-2xl">
             <h1 className="text-3xl font-bold mb-2 text-gray-800">Showcase Your Property</h1>
-            <p className="mb-6 text-gray-600">Upload 5-10 high-quality photos to make your listing stand out.</p>
+            <p className="mb-6 text-gray-600">Upload 5-10 high-quality photos to make your listing stand out. Maximum file size: 10 MB per image.</p>
             
             <div className="upload__image-wrapper">
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-6 text-center hover:border-blue-500 transition-colors duration-300">

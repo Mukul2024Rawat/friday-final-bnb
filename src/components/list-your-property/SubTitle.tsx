@@ -1,5 +1,4 @@
-"use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { setProperty } from "@/store/slices/formSlice";
@@ -18,7 +17,9 @@ const SubTitleStep = ({ onNext, onBack }: { onNext: () => void; onBack: () => vo
       dispatch(setProperty({ ...property, subtitle: newSubtitle }));
     }
   };
-  const isComplete = subtitle.length > 0;
+
+  const isComplete = subtitle.trim().length > 0;
+
   return (
     <div className="flex flex-col h-screen bg-zinc-200">
       <Header />

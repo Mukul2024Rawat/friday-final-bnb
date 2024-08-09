@@ -1,5 +1,6 @@
+// src/components/BookingTable.tsx
 import React, { useEffect, useState } from "react";
-import { api } from "@/api";
+import { fetchBookings, updateBookingStatus } from "@/api/bookingApi";
 import toast, { Toaster } from "react-hot-toast";
 import { MdOutlineRateReview } from "react-icons/md";
 import HostReview from "@/components/modals/HostReviewModal";
@@ -7,73 +8,11 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import PaginationItems from "@/components/ui/paginationItems";
-
-interface Booking {
-  id: number;
-  checkin_date: string;
-  checkout_date: string;
-  booking_date: string;
-  members: number;
-  booking_status: "pending" | "confirm" | "reject" | "cancelled";
-  total_amount: string;
-  property: {
-    id: number;
-    title: string;
-  };
-  guest: {
-    id: number;
-    name: string;
-  };
-}
-
-interface ApiResponse {
-  offset: number;
-  totalItems: number;
-  totalPages: number;
-  itemCount: number;
-  page: number;
-  items: Booking[];
-}
-
-const fetchBookings = async (bookingStatus?: string, currentPage = 1): Promise<ApiResponse> => {
-  try {
-    const response = await api.get<ApiResponse>("/host/booking", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      params: { bookingStatus, offset: 15, page: currentPage },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching bookings:", error);
-    throw error;
-  }
-};
-
-const updateBookingStatus = async (
-  bookingId: number,
-  status: "confirm" | "reject"
-): Promise<void> => {
-  try {
-    await api.patch(
-      `/host/booking/${bookingId}/status`,
-      { booking_status: status },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
-    );
-  } catch (error) {
-    console.error("Error updating booking status:", error);
-    throw error;
-  }
-};
+import { Booking, ApiResponse } from "@/types/bookingTable";
 
 const BookingTable: React.FC = () => {
   const [bookings, setBookings] = useState<ApiResponse | null>(null);
@@ -83,8 +22,8 @@ const BookingTable: React.FC = () => {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [currentBookingId, setCurrentBookingId] = useState<number | null>(null);
   const [currentGuestId, setCurrentGuestId] = useState<number | null>(null);
-  const [currentBookingStatus, setCurrentBookingStatus] = useState<string>('');
-  const [currentCheckoutDate, setCurrentCheckoutDate] = useState<string>('');
+  const [currentBookingStatus, setCurrentBookingStatus] = useState<string>("");
+  const [currentCheckoutDate, setCurrentCheckoutDate] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -99,8 +38,8 @@ const BookingTable: React.FC = () => {
   const closeReviewModal = () => {
     setCurrentBookingId(null);
     setCurrentGuestId(null);
-    setCurrentBookingStatus('');
-    setCurrentCheckoutDate('');
+    setCurrentBookingStatus("");
+    setCurrentCheckoutDate("");
     setIsReviewModalOpen(false);
   };
 
@@ -127,20 +66,12 @@ const BookingTable: React.FC = () => {
     try {
       await updateBookingStatus(id, status);
       if (bookings) {
-        setBookings({
-          ...bookings,
-          items: bookings.items.map((booking) =>
-            booking.id === id ? { ...booking, booking_status: status } : booking
-          )
-        });
+        const updatedBookings = bookings.items.map((booking) =>
+          booking.id === id ? { ...booking, booking_status: status } : booking
+        );
+        setBookings({ ...bookings, items: updatedBookings });
       }
       setOpenDropdown(null);
-      toast.success(
-        `Booking ${status === "confirm" ? "confirmed" : "rejected"} successfully`,
-        {
-          position: "bottom-right",
-        }
-      );
     } catch (error: any) {
       console.error("Error updating booking status:", error);
       let errorMessage = "An error occurred while updating the booking status.";
@@ -189,7 +120,7 @@ const BookingTable: React.FC = () => {
               onChange={handleFilterChange}
               className="appearance-none p-2 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
             >
-              <option value="">All Statuses</option>
+              <option value="">Default</option>
               <option value="pending">Pending</option>
               <option value="confirm">Confirmed</option>
               <option value="cancelled">Cancelled</option>
@@ -263,49 +194,57 @@ const BookingTable: React.FC = () => {
                   </span>
                 </td>
                 <td className="py-2 px-4 border-b text-center">
-  <div className="relative">
-    <button
-      onClick={() => setOpenDropdown(openDropdown === booking.id ? null : booking.id)}
-      className={`text-gray-500 hover:text-gray-700 focus:outline-none ${
-        booking.booking_status === 'pending'
-          ? 'cursor-pointer'
-          : 'cursor-not-allowed opacity-50'
-      }`}
-      disabled={booking.booking_status !== 'pending'}
-    >
-      <svg
-        className="w-6 h-6"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-        ></path>
-      </svg>
-    </button>
-    {openDropdown === booking.id && (
-      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
-        <button
-          onClick={() => handleStatusChange(booking.id, 'confirm')}
-          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          Confirm
-        </button>
-        <button
-          onClick={() => handleStatusChange(booking.id, 'reject')}
-          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          Reject
-        </button>
-      </div>
-    )}
-  </div>
-</td>
+                  <div className="relative">
+                    <button
+                      onClick={() =>
+                        setOpenDropdown(
+                          openDropdown === booking.id ? null : booking.id
+                        )
+                      }
+                      className={`text-gray-500 hover:text-gray-700 focus:outline-none ${
+                        booking.booking_status === "pending"
+                          ? "cursor-pointer"
+                          : "cursor-not-allowed opacity-50"
+                      }`}
+                      disabled={booking.booking_status !== "pending"}
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        ></path>
+                      </svg>
+                    </button>
+                    {openDropdown === booking.id && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                        <button
+                          onClick={() =>
+                            handleStatusChange(booking.id, "confirm")
+                          }
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleStatusChange(booking.id, "reject")
+                          }
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </td>
                 <td className="py-2 px-4 border-b text-center">
                   <MdOutlineRateReview
                     onClick={() => openReviewModal(booking)}
@@ -395,37 +334,36 @@ const BookingTable: React.FC = () => {
           />
         )}
 
-     {/* Pagination */}
-{bookings && bookings.totalPages > 1 && (
-  <Pagination>
-    <PaginationContent>
-      {currentPage > 1 && (
-        <PaginationItem>
-          <PaginationPrevious
-            onClick={() => handlePageChange(currentPage - 1)}
-            className="pr-[8px] cursor-pointer"
-          />
-        </PaginationItem>
-      )}
-      
-      <PaginationItems
-        totalPages={bookings.totalPages}
-        currentPage={currentPage}
-        handlePageChange={handlePageChange}
-      />
+      {/* Pagination */}
+      {bookings && bookings.totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            {currentPage > 1 && (
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className="pr-[8px] cursor-pointer"
+                />
+              </PaginationItem>
+            )}
 
-      {currentPage < bookings.totalPages && (
-        <PaginationItem>
-          <PaginationNext
-            onClick={() => handlePageChange(currentPage + 1)}
-            className="pl-[8px] cursor-pointer"
-          />
-        </PaginationItem>
+            <PaginationItems
+              totalPages={bookings.totalPages}
+              currentPage={currentPage}
+              handlePageChange={handlePageChange}
+            />
+
+            {currentPage < bookings.totalPages && (
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className="pl-[8px] cursor-pointer"
+                />
+              </PaginationItem>
+            )}
+          </PaginationContent>
+        </Pagination>
       )}
-    </PaginationContent>
-  </Pagination>
-)}
-      
     </div>
   );
 };
